@@ -1,7 +1,7 @@
-package com.roboracers.pathfollower.utils;
+package com.roboracers.topgear.utils;
 
-import com.roboracers.pathfollower.geometry.Vector2d;
-import com.roboracers.pathfollower.planner.CubicBezierCurve;
+import com.roboracers.topgear.geometry.Vector2d;
+import com.roboracers.topgear.planner.CubicBezierCurve;
 
 public class DefaultCurves {
 

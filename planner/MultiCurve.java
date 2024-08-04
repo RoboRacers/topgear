@@ -1,6 +1,6 @@
-package com.roboracers.pathfollower.planner;
+package com.roboracers.topgear.planner;
 
-import com.roboracers.pathfollower.geometry.Vector2d;
+import com.roboracers.topgear.geometry.Vector2d;
 
 import java.util.List;
 

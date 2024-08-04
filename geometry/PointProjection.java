@@ -1,7 +1,7 @@
-package com.roboracers.pathfollower.geometry;
+package com.roboracers.topgear.geometry;
 
-import com.roboracers.pathfollower.planner.CubicBezierCurve;
-import com.roboracers.pathfollower.planner.ParametricPath;
+import com.roboracers.topgear.planner.CubicBezierCurve;
+import com.roboracers.topgear.planner.ParametricPath;
 
 public class PointProjection {
 
