@@ -21,7 +21,6 @@ import com.roboracers.topgear.planner.ParametricPath;
  */
 public class GuidedVectorFieldFollower implements Follower {
 
-
     /**
      * Current parametrically defined path that is being follower.
      */
@@ -33,25 +32,31 @@ public class GuidedVectorFieldFollower implements Follower {
     /**
      * Max speed of the robot while following the path.
      */
-    private double maxSpeed = 0.75;
+    private double maxSpeed;
     /**
      * Threshold for the end PID to kick in, measured in inches.
      */
-    private double PIDThreshold = 1;
-
-
-    private double stoppingDistanceThreshold = 1;
-    private double stoppingPowerThreshold = 0.1;
-
-
-    private boolean followingSequence = false;
-    /*
-     Ending PIDs
+    private double PIDThreshold;
+    /**
+     * The distance threshold for the end of the path, measured in inches.
+     */
+    private double stoppingDistanceThreshold;
+    /**
+     * The minimum power for the end of the path, measured between 0 and 1.
+     */
+    private double stoppingPowerThreshold;
+    /**
+     * X PID controller.
      */
     PIDController xPID;
+    /**
+     * Y PID controller.
+     */
     PIDController yPID;
+    /**
+     * Heading PID controller.
+     */
     PIDController headingPID;
-
 
     public GuidedVectorFieldFollower(double tangentDistance) {
         if (tangentDistance <= 0)
@@ -79,26 +84,43 @@ public class GuidedVectorFieldFollower implements Follower {
         this.maxSpeed = maxSpeed;
     }
 
+    public GuidedVectorFieldFollower(Params params) {
+        this.tangentDistance = params.tangentDistance;
+        this.maxSpeed = params.maxSpeed;
+        this.PIDThreshold = params.PIDThreshold;
+        this.stoppingDistanceThreshold = params.stoppingDistanceThreshold;
+        this.stoppingPowerThreshold = params.stoppingPowerThreshold;
 
-    public GuidedVectorFieldFollower(double tangentDistance, PIDCoefficients xPIDCoeffs, PIDCoefficients yPIDCoeffs, PIDCoefficients headingPIDCoeffs, double maxSpeed, double stoppingDistanceThreshold, double stoppingPowerThreshold) {
-        if (tangentDistance <= 0)
-            this.tangentDistance = 0.1;
-        else
-            this.tangentDistance = tangentDistance;
-
-
-        xPID = new PIDController(xPIDCoeffs);
-        yPID = new PIDController(yPIDCoeffs);
-        headingPID = new PIDController(headingPIDCoeffs);
-        this.maxSpeed = maxSpeed;
-        this.stoppingDistanceThreshold = stoppingDistanceThreshold;
-        this.stoppingPowerThreshold = stoppingPowerThreshold;
+        xPID = new PIDController(params.xPIDCoeffs);
+        yPID = new PIDController(params.yPIDCoeffs);
+        headingPID = new PIDController(params.headingPIDCoeffs);
     }
 
+    /**
+     * Parameters for the GVF follower.
+     */
+    public static class Params {
+        double tangentDistance;
+        double maxSpeed;
+        double PIDThreshold;
+        double stoppingDistanceThreshold;
+        double stoppingPowerThreshold;
 
+        PIDCoefficients xPIDCoeffs;
+        PIDCoefficients yPIDCoeffs;
+        PIDCoefficients headingPIDCoeffs;
 
-
-
+        public Params(double tangentDistance, double maxSpeed, double PIDThreshold, double stoppingDistanceThreshold, double stoppingPowerThreshold, PIDCoefficients xPIDCoeffs, PIDCoefficients yPIDCoeffs, PIDCoefficients headingPIDCoeffs) {
+            this.tangentDistance = tangentDistance;
+            this.maxSpeed = maxSpeed;
+            this.PIDThreshold = PIDThreshold;
+            this.stoppingDistanceThreshold = stoppingDistanceThreshold;
+            this.stoppingPowerThreshold = stoppingPowerThreshold;
+            this.xPIDCoeffs = xPIDCoeffs;
+            this.yPIDCoeffs = yPIDCoeffs;
+            this.headingPIDCoeffs = headingPIDCoeffs;
+        }
+    }
 
     /**
      * Set the current path to be followed.
@@ -109,7 +131,6 @@ public class GuidedVectorFieldFollower implements Follower {
         this.parametricPath = parametricPath;
     }
 
-
     /**
      * Feeds the drive powers to the drivetrain based on the direction of the
      * vector gradient field at the current point. Only provides x and y translation,
@@ -119,27 +140,18 @@ public class GuidedVectorFieldFollower implements Follower {
      */
     @Override
     public Pose2d getDriveVelocity(Pose2d currentPosition) {
-
-
         // If no path has been set, do not return anything
         if (this.parametricPath == null)
             return null;
 
-
-        double threshold = 1;
-
-
         Vector2d endpoint = parametricPath.getPoint(1);
         double distanceToEnd = currentPosition.vec().distanceTo(endpoint);
-
 
         // Use the ending PID while within threshold.
         if (Math.abs(distanceToEnd) < PIDThreshold) {
             Vector2d endDerivative = parametricPath.getDerivative(0.99);
 
-
             double headingTarget = Math.atan2(endDerivative.getY(), endDerivative.getX());
-
 
             // Debugging values
             usingPID = true;
@@ -150,45 +162,34 @@ public class GuidedVectorFieldFollower implements Follower {
             currentDrivePower = new Pose2d();
             currentHeadingTarget = headingTarget;
 
+            return PIDToPoint( new Pose2d(endpoint, headingTarget), currentPosition);
 
-            return PIDToPoint(
-                    new Pose2d(endpoint, headingTarget),
-                    currentPosition
-            );
         } else {
             usingPID = false;
             Vector2d currentPoint = currentPosition.vec();
 
-
             // Find the closest point on the path from the robot and get its t-value
             double closestTValue = PointProjection.projectionBinarySearch(parametricPath, currentPoint, 10);
-
 
             // Calculate the tangent point (point that the robot goes towards
             Vector2d tangentPoint = parametricPath.getPoint(closestTValue).add(
                     parametricPath.getDerivative(closestTValue).normalize().multiply(tangentDistance));
 
-
             // Get the vector pointing from the robot to the tangent point
             Vector2d connectingVector = tangentPoint.subtract(currentPoint);
             Vector2d normalizedVector = connectingVector.normalize();
 
-
             // Scale the speed by the max speed
             Vector2d velocityVector = normalizedVector.scalarMultiply(maxSpeed);
-
 
             // Rotate the vector to the robot's frame of reference
             Vector2d robotFrame = velocityVector.rotated(-currentPosition.getHeading());
 
-
-            // Heading calcs
+            // Calculate the heading target
             double headingTarget = Math.atan2(robotFrame.getY(), robotFrame.getX());
             headingPID.setSetpoint(headingTarget);
 
-
             Pose2d drivePower = new Pose2d(robotFrame, headingPID.update(currentPosition.getHeading()));
-
 
             // Debugging values
             usingPID = false;
@@ -199,57 +200,10 @@ public class GuidedVectorFieldFollower implements Follower {
             currentDrivePower = drivePower;
             currentHeadingTarget = headingTarget;
 
-
             // Return the new vector in the robot's frame of reference
             return drivePower;
         }
     }
-
-
-    /**
-     * Feeds the drive powers to the drivetrain based on the direction of the
-     * vector gradient field at the current point. Only provides x and y translation,
-     * no heading in this implementation.
-     * @param currentPosition robot current position
-     * @return Drive power
-     */
-    public Pose2d getDriveVelocity2(Pose2d currentPosition) {
-
-
-        // If no path has been set, do not return anything
-        if (this.parametricPath == null)
-            return null;
-
-
-        double distanceToEnd = currentPosition.vec().distanceTo(parametricPath.getPoint(1));
-
-
-        Vector2d currentPoint = currentPosition.vec();
-
-
-        // Find the closest point on the path from the robot and get it's t-value
-        double closestTValue = PointProjection.projectionBinarySearch(parametricPath, currentPoint, 10);
-
-
-        // Calculate the tangent point (point that the robot goes towards
-        Vector2d tangentPoint = parametricPath.getPoint(closestTValue).add(
-                parametricPath.getDerivative(closestTValue).normalize().multiply(tangentDistance));
-
-
-        // Get the vector pointing from the robot to the tangent point
-        Vector2d connectingVector = tangentPoint.subtract(currentPoint);
-        Vector2d normalizedVector = connectingVector.normalize();
-
-
-        // Scale the speed by the max speed
-        Vector2d velocityVector = normalizedVector.scalarMultiply(maxSpeed);
-
-
-        Vector2d robotFrame = velocityVector.fieldToRobotCentric(currentPosition.getHeading());
-        // Return the new vector in the robot's frame of reference
-        return new Pose2d(robotFrame, 0);
-    }
-
 
     /**
      * Check if the robot has reached the end of the path.
@@ -258,38 +212,30 @@ public class GuidedVectorFieldFollower implements Follower {
      */
     @Override
     public Boolean isComplete(Pose2d currentPosition) {
-
-
         Vector2d endpoint = parametricPath.getPoint(1);
-
-
         double delta =  currentPosition.vec().distanceTo(endpoint);
-
-
+        double power = currentDrivePower.vec().length();
         return delta < stoppingDistanceThreshold
-                && currentDrivePower.vec().length() < stoppingPowerThreshold;
+                && power < stoppingPowerThreshold;
     }
 
-
     /**
-     * PID to point implementation to bring the robot to a stop.
+     * PID to point implementation to bring the robot to a stop,
+     * or to hold position at the end of the path.
      * @param target
      * @param currentPose
      * @return
      */
     private Pose2d PIDToPoint(Pose2d target, Pose2d currentPose) {
 
-
         xPID.setSetpoint(target.getX());
         yPID.setSetpoint(target.getY());
         headingPID.setSetpoint(target.getHeading());
-
 
         Vector2d translationPowers = new Vector2d(
                 xPID.update(currentPose.getX()),
                 yPID.update(currentPose.getY())
         ).rotated(-currentPose.getHeading());
-
 
         return new Pose2d(
                 translationPowers,
@@ -301,18 +247,17 @@ public class GuidedVectorFieldFollower implements Follower {
     /*
      * Status variables.
      */
-    /**
-     * Displays if the ending PID has kicked in yet or not.
-     */
     protected boolean usingPID = false;
-    public double currentClosestTValue;
-    public double currentDistanceToEnd;
-    public Vector2d currentClosestPoint;
-    public Vector2d currentTangentPoint;
-    public Pose2d currentDrivePower;
-    public double currentHeadingTarget;
+    protected double currentClosestTValue;
+    protected double currentDistanceToEnd;
+    protected Vector2d currentClosestPoint;
+    protected Vector2d currentTangentPoint;
+    protected Pose2d currentDrivePower;
+    protected double currentHeadingTarget;
 
-
+    /**
+     * DebugPacket class to store the current state of the follower.
+     */
     public class DebugPacket {
         public boolean usingPID;
         public double currentClosestTValue;
@@ -347,7 +292,6 @@ public class GuidedVectorFieldFollower implements Follower {
                     '}';
         }
     }
-
 
     /**
      * Returns useful information about the current state of the follower.

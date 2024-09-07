@@ -12,7 +12,6 @@ public class CubicBezierCurve implements ParametricPath {
 
     private final double arcLength;
 
-    // TODO: Make this tunable
     public static int ARCLEN_ESTIMATION_SEGMENTS = 100;
 
     public CubicBezierCurve(Vector2d controlPoint1, Vector2d controlPoint2, Vector2d controlPoint3, Vector2d controlPoint4) {
@@ -34,7 +33,6 @@ public class CubicBezierCurve implements ParametricPath {
     }
 
     public Vector2d getPoint(double t) {
-
         double oneMinusT = 1.0 - t;
 
         double x = Math.pow(oneMinusT, 3) * controlPoint1.getX() +
@@ -59,7 +57,35 @@ public class CubicBezierCurve implements ParametricPath {
         Vector2d term3 = controlPoint4.subtract(controlPoint3).multiply(3 * t * t); // 3t^2 * (P3 - P2)
 
         return term1.add(term2).add(term3);
+    }
 
+    public Vector2d getSecondDerivative(double t) {
+        double u = 1 - t;
+
+        Vector2d term1 = controlPoint3.subtract(controlPoint2).subtract(controlPoint2.subtract(controlPoint1)).multiply(6 * u); // 6(1-t)(P2 - 2P1 + P0)
+        Vector2d term2 = controlPoint4.subtract(controlPoint3).subtract(controlPoint3.subtract(controlPoint2)).multiply(6 * t); // 6t(P3 - 2P2 + P1)
+
+        return term1.add(term2);
+    }
+
+    public double getCurvature(double t) {
+        Vector2d firstDer = getDerivative(t);
+        Vector2d secondDer = getSecondDerivative(t);
+
+        double dx = firstDer.getX();
+        double dy = firstDer.getY();
+        double ddx = secondDer.getX();
+        double ddy = secondDer.getY();
+
+        double numerator = Math.abs(dx * ddy - dy * ddx);
+        double denominator = Math.pow(dx * dx + dy * dy, 1.5);
+
+        return numerator / denominator;
+    }
+
+    public double getRadiusOfCurvature(double t) {
+        double curvature = getCurvature(t);
+        return curvature == 0 ? Double.POSITIVE_INFINITY : 1 / curvature;
     }
 
     private double bezierArcLength(int numSegments) {
@@ -84,15 +110,16 @@ public class CubicBezierCurve implements ParametricPath {
 
     public static void main(String[] args) {
         CubicBezierCurve testPath = new CubicBezierCurve(
-                new Vector2d(0,0),
+                new Vector2d(0, 0),
                 new Vector2d(0, 1),
-                new Vector2d(0,1),
-                new Vector2d(0,2)
+                new Vector2d(0, 1),
+                new Vector2d(0, 2)
         );
 
         double len = testPath.bezierArcLength(100);
+        System.out.println("Arc Length: " + len);
 
-        System.out.println(len);
+        double radiusOfCurvature = testPath.getRadiusOfCurvature(0.5);
+        System.out.println("Radius of Curvature at t=0.5: " + radiusOfCurvature);
     }
-
 }
