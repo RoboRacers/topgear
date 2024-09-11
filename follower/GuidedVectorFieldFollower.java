@@ -140,6 +140,7 @@ public class GuidedVectorFieldFollower implements Follower {
      */
     @Override
     public Pose2d getDriveVelocity(Pose2d currentPosition) {
+
         // If no path has been set, do not return anything
         if (this.parametricPath == null)
             return null;
@@ -252,7 +253,9 @@ public class GuidedVectorFieldFollower implements Follower {
 
             // Get the vector pointing from the robot to the tangent point
             Vector2d connectingVector = tangentPoint.subtract(currentPoint);
-            Vector2d normalizedVector = connectingVector.normalize();
+            Vector2d centripetalForceCorrection = computeCentripetalForceCorrection(closestTValue, currentVelocity);
+
+            Vector2d normalizedVector = (connectingVector.add(centripetalForceCorrection)).normalize();
 
             // Scale the speed by the max speed
             Vector2d velocityVector = normalizedVector.scalarMultiply(maxSpeed);
@@ -265,8 +268,6 @@ public class GuidedVectorFieldFollower implements Follower {
             headingPID.setSetpoint(headingTarget);
 
             Pose2d drivePower = new Pose2d(robotFrame, headingPID.update(currentPosition.getHeading()));
-
-            parametricPath.getRadiusOfCurvature(closestTValue);
 
             // Debugging values
             usingPID = false;
@@ -321,7 +322,7 @@ public class GuidedVectorFieldFollower implements Follower {
     }
 
     // Function to calculate the centripetal force correction at a point on the curve
-    public Vector2d computeCentripetalForceCorrection(double t, double velocity) {
+    public Vector2d computeCentripetalForceCorrection(double t, Pose2d velocity) {
         double radiusOfCurvature = parametricPath.getRadiusOfCurvature(t);
 
         // If the radius of curvature is infinite (straight path), no correction is needed
@@ -331,7 +332,9 @@ public class GuidedVectorFieldFollower implements Follower {
 
         // Compute the centripetal force
         double mass = 1;
-        double centripetalForceMagnitude = (mass * velocity * velocity) / radiusOfCurvature;
+        Vector2d tangentUnitVector = parametricPath.getDerivative(t).normalize();
+        double tangentVelocity = velocity.vec().dot(tangentUnitVector);
+        double centripetalForceMagnitude = (mass * tangentVelocity * tangentVelocity) / radiusOfCurvature;
 
         // Get the unit vector normal to the path (pointing towards the center of curvature)
         Vector2d tangent = parametricPath.getDerivative(t).normalize(); // Tangent vector
