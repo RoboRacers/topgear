@@ -83,6 +83,7 @@ public class CubicBezierCurve implements ParametricPath {
         return numerator / denominator;
     }
 
+    @Override
     public double getRadiusOfCurvature(double t) {
         double curvature = getCurvature(t);
         return curvature == 0 ? Double.POSITIVE_INFINITY : 1 / curvature;

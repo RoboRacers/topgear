@@ -6,6 +6,8 @@ public interface ParametricPath {
 
     Vector2d getPoint(double t);
     Vector2d getDerivative(double t);
+    double getCurvature(double t);
+    double getRadiusOfCurvature(double t);
 
     double getArcLength();
 
