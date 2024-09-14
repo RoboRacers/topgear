@@ -19,7 +19,7 @@ import com.roboracers.topgear.planner.ParametricPath;
  * to adjust the robot's movement to stay on the path defined by the GVF.
  * </p>
  */
-public class GuidedVectorFieldFollower implements Follower {
+public class BasicGuidedVectorFieldFollower implements Follower {
 
     /**
      * Current parametrically defined path that is being follower.
@@ -59,7 +59,7 @@ public class GuidedVectorFieldFollower implements Follower {
      */
     PIDController headingPID;
 
-    public GuidedVectorFieldFollower(double tangentDistance) {
+    public BasicGuidedVectorFieldFollower(double tangentDistance) {
         if (tangentDistance <= 0)
             this.tangentDistance = 0.1;
         else
@@ -72,7 +72,7 @@ public class GuidedVectorFieldFollower implements Follower {
     }
 
 
-    public GuidedVectorFieldFollower(double tangentDistance, PIDCoefficients xPIDCoeffs, PIDCoefficients yPIDCoeffs, PIDCoefficients headingPIDCoeffs, double maxSpeed) {
+    public BasicGuidedVectorFieldFollower(double tangentDistance, PIDCoefficients xPIDCoeffs, PIDCoefficients yPIDCoeffs, PIDCoefficients headingPIDCoeffs, double maxSpeed) {
         if (tangentDistance <= 0)
             this.tangentDistance = 0.1;
         else
@@ -85,7 +85,7 @@ public class GuidedVectorFieldFollower implements Follower {
         this.maxSpeed = maxSpeed;
     }
 
-    public GuidedVectorFieldFollower(Params params) {
+    public BasicGuidedVectorFieldFollower(Params params) {
         this.tangentDistance = params.tangentDistance;
         this.maxSpeed = params.maxSpeed;
         this.PIDThreshold = params.PIDThreshold;
@@ -132,18 +132,19 @@ public class GuidedVectorFieldFollower implements Follower {
         this.parametricPath = parametricPath;
     }
 
-    public ParametricPath getParametricPath() {
+    public ParametricPath getPath() {
         return parametricPath;
     }
     /**
      * Feeds the drive powers to the drivetrain based on the direction of the
      * vector gradient field at the current point. Only provides x and y translation,
      * no heading in this implementation.
+     * DOES NOT HAVE CENTRITEPAL FORCE CORRECTION
      * @param currentPosition robot current position
      * @return Drive power
      */
     @Override
-    public Pose2d getDriveVelocity(Pose2d currentPosition) {
+    public Pose2d getDriveVelocity(Pose2d currentPosition, Pose2d currentVelocity) {
 
         // If no path has been set, do not return anything
         if (this.parametricPath == null)
@@ -154,7 +155,7 @@ public class GuidedVectorFieldFollower implements Follower {
 
         // Use the ending PID while within threshold.
         if (Math.abs(distanceToEnd) < PIDThreshold) {
-            Vector2d endDerivative = parametricPath.getDerivative(0.99);
+            Vector2d endDerivative = parametricPath.getDerivative(1);
 
             double headingTarget = Math.atan2(endDerivative.getY(), endDerivative.getX());
 
@@ -213,81 +214,6 @@ public class GuidedVectorFieldFollower implements Follower {
     }
 
     /**
-     * Feeds the drive powers to the drivetrain based on the direction of the
-     * vector gradient field at the current point. Only provides x and y translation,
-     * no heading in this implementation.
-     * @param currentPosition robot current position
-     * @return Drive power
-     */
-    public Pose2d getDriveVelocity2(Pose2d currentPosition, Pose2d currentVelocity) {
-        // If no path has been set, do not return anything
-        if (this.parametricPath == null)
-            return null;
-
-        Vector2d endpoint = parametricPath.getPoint(1);
-        double distanceToEnd = currentPosition.vec().distanceTo(endpoint);
-
-        // Use the ending PID while within threshold.
-        if (Math.abs(distanceToEnd) < PIDThreshold) {
-            Vector2d endDerivative = parametricPath.getDerivative(0.99);
-
-            double headingTarget = Math.atan2(endDerivative.getY(), endDerivative.getX());
-
-            // Debugging values
-            usingPID = true;
-            currentClosestTValue = 0;
-            currentDistanceToEnd = distanceToEnd;
-            currentClosestPoint = new Vector2d(0,0);
-            currentTangentPoint = new Vector2d(0,0);
-            currentDrivePower = new Pose2d();
-            currentHeadingTarget = headingTarget;
-
-            return PIDToPoint( new Pose2d(endpoint, headingTarget), currentPosition);
-
-        } else {
-            usingPID = false;
-            Vector2d currentPoint = currentPosition.vec();
-
-            // Find the closest point on the path from the robot and get its t-value
-            double closestTValue = PointProjection.projectionBinarySearch(parametricPath, currentPoint, 10);
-
-            // Calculate the tangent point (point that the robot goes towards
-            Vector2d tangentPoint = parametricPath.getPoint(closestTValue).add(
-                    parametricPath.getDerivative(closestTValue).normalize().multiply(tangentDistance));
-
-            // Get the vector pointing from the robot to the tangent point
-            Vector2d connectingVector = tangentPoint.subtract(currentPoint);
-            Vector2d centripetalForceCorrection = computeCentripetalForceCorrection(closestTValue, currentVelocity);
-
-            Vector2d normalizedVector = (connectingVector.add(centripetalForceCorrection)).normalize();
-
-            // Scale the speed by the max speed
-            Vector2d velocityVector = normalizedVector.scalarMultiply(maxSpeed);
-
-            // Rotate the vector to the robot's frame of reference
-            Vector2d robotFrame = velocityVector.rotated(-currentPosition.getHeading());
-
-            // Calculate the heading target
-            double headingTarget = Math.atan2(robotFrame.getY(), robotFrame.getX());
-            headingPID.setSetpoint(headingTarget);
-
-            Pose2d drivePower = new Pose2d(robotFrame, headingPID.update(currentPosition.getHeading()));
-
-            // Debugging values
-            usingPID = false;
-            currentClosestTValue = closestTValue;
-            currentDistanceToEnd = distanceToEnd;
-            currentClosestPoint = parametricPath.getPoint(closestTValue);
-            currentTangentPoint = tangentPoint;
-            currentDrivePower = drivePower;
-            currentHeadingTarget = headingTarget;
-
-            // Return the new vector in the robot's frame of reference
-            return drivePower;
-        }
-    }
-
-    /**
      * Check if the robot has reached the end of the path.
      * @param currentPosition robot current position
      * @return true if the robot has reached the end of the path, false otherwise
@@ -326,37 +252,6 @@ public class GuidedVectorFieldFollower implements Follower {
         );
     }
 
-    // Function to calculate the centripetal force correction at a point on the curve
-    public Vector2d computeCentripetalForceCorrection(double t, Pose2d velocity) {
-        double radiusOfCurvature = parametricPath.getRadiusOfCurvature(t);
-
-        // If the radius of curvature is infinite (straight path), no correction is needed
-        if (radiusOfCurvature == Double.POSITIVE_INFINITY) {
-            return new Vector2d(0, 0); // No correction needed for straight paths
-        }
-
-        // Compute the centripetal force
-        double mass = .07; // .85
-        Vector2d tangentUnitVector = parametricPath.getDerivative(t).normalize();
-        double tangentVelocity = velocity.vec().dot(tangentUnitVector);
-        double centripetalForceMagnitude = (mass * tangentVelocity * tangentVelocity) / radiusOfCurvature;
-
-        // Get the unit vector normal to the path (pointing towards the center of curvature)
-        Vector2d tangent = parametricPath.getDerivative(t).normalize(); // Tangent vector
-        Vector2d normal = new Vector2d(-tangent.getY(), tangent.getX()); // Perpendicular to tangent
-
-        // The direction of the normal force depends on the curve's orientation
-        if (parametricPath.getCurvature(t) < 0) {
-            normal = normal.multiply(-1); // Flip the normal direction if curvature is negative
-        }
-
-        // The centripetal force correction is in the direction of the normal
-        Vector2d centripetalForce = normal.multiply(centripetalForceMagnitude);
-
-        return centripetalForce;
-    }
-
-
     /*
      * Status variables.
      */
@@ -381,7 +276,7 @@ public class GuidedVectorFieldFollower implements Follower {
         public double currentHeadingTarget;
 
 
-        public DebugPacket(GuidedVectorFieldFollower follower) {
+        public DebugPacket(BasicGuidedVectorFieldFollower follower) {
             this.usingPID = follower.usingPID;
             this.currentClosestTValue = follower.currentClosestTValue;
             this.currentDistanceToEnd = follower.currentDistanceToEnd;
