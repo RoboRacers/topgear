@@ -45,6 +45,7 @@ public class GuidedVectorFieldFollower implements Follower {
      * The minimum power for the end of the path, measured between 0 and 1.
      */
     private double stoppingPowerThreshold;
+
     /**
      * X PID controller.
      */
@@ -131,6 +132,9 @@ public class GuidedVectorFieldFollower implements Follower {
         this.parametricPath = parametricPath;
     }
 
+    public ParametricPath getParametricPath() {
+        return parametricPath;
+    }
     /**
      * Feeds the drive powers to the drivetrain based on the direction of the
      * vector gradient field at the current point. Only provides x and y translation,
@@ -292,6 +296,7 @@ public class GuidedVectorFieldFollower implements Follower {
     public Boolean isComplete(Pose2d currentPosition) {
         Vector2d endpoint = parametricPath.getPoint(1);
         double delta =  currentPosition.vec().distanceTo(endpoint);
+        if (currentDrivePower == null) currentDrivePower = new Pose2d(0,0,0);
         double power = currentDrivePower.vec().length();
         return delta < stoppingDistanceThreshold
                 && power < stoppingPowerThreshold;
@@ -331,7 +336,7 @@ public class GuidedVectorFieldFollower implements Follower {
         }
 
         // Compute the centripetal force
-        double mass = 1;
+        double mass = .07; // .85
         Vector2d tangentUnitVector = parametricPath.getDerivative(t).normalize();
         double tangentVelocity = velocity.vec().dot(tangentUnitVector);
         double centripetalForceMagnitude = (mass * tangentVelocity * tangentVelocity) / radiusOfCurvature;

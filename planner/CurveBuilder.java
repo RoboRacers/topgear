@@ -62,12 +62,5 @@ public class CurveBuilder {
             return this;
         }
 
-        /**
-         * Merges multiple bezier curves into a single parametric path. The curves are concatenated in the order they are added.
-         * @return the parametric path, with a domain from 0 to 1.
-         */
-        public  ParametricPath build() {
-            return new MultiCurve(curves);
-        }
     }
 }
