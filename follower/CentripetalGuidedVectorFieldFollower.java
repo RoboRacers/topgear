@@ -188,12 +188,10 @@ public class CentripetalGuidedVectorFieldFollower implements Follower {
                     parametricPath.getDerivative(closestTValue).normalize().multiply(tangentDistance));
 
             // Get the vector pointing from the robot to the tangent point
-            Vector2d driveVector = tangentPoint.subtract(currentPoint);
-
-            // Compute centripetal force correction to make sure the robot stays on the path even in high curvature sections
+            Vector2d connectingVector = tangentPoint.subtract(currentPoint);
             Vector2d centripetalForceCorrection = computeCentripetalForceCorrection(closestTValue, currentVelocity);
 
-            Vector2d normalizedVector = (driveVector.add(centripetalForceCorrection)).normalize();
+            Vector2d normalizedVector = (connectingVector.add(centripetalForceCorrection)).normalize();
 
             // Scale the speed by the max speed
             Vector2d velocityVector = normalizedVector.scalarMultiply(maxSpeed);
