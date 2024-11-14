@@ -19,6 +19,7 @@ import com.roboracers.topgear.planner.ParametricPath;
  * to adjust the robot's movement to stay on the path defined by the GVF.
  * </p>
  */
+@Deprecated
 public class GuidedVectorFieldFollower implements Follower {
 
     /**

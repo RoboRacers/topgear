@@ -1,5 +1,7 @@
 package com.roboracers.topgear.controls;
 
+import com.qualcomm.robotcore.util.ElapsedTime;
+
 /**
  * The PIDController class implements a simple Proportional-Integral-Derivative (PID) controller.
  * This controller can be used to regulate the behavior of various systems, such as maintaining a
@@ -15,6 +17,8 @@ public class PIDController {
     private double setpoint; // Desired value
     private double previousError; // Previous error value
     private double integral; // Integral term
+
+    ElapsedTime timer = new ElapsedTime();
 
     /**
      * Constructs a PIDController with the specified gains.
@@ -57,8 +61,8 @@ public class PIDController {
      */
     public double update(double currentValue) {
         double error = setpoint - currentValue;
-        integral += error;
-        double derivative = error - previousError;
+        integral += error * timer.seconds();
+        double derivative = (error - previousError) / timer.seconds();
         double output = (kp * error) + (ki * integral) + (kd * derivative);
         previousError = error;
         return output;

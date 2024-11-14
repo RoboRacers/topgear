@@ -59,32 +59,6 @@ public class BasicGuidedVectorFieldFollower implements Follower {
      */
     PIDController headingPID;
 
-    public BasicGuidedVectorFieldFollower(double tangentDistance) {
-        if (tangentDistance <= 0)
-            this.tangentDistance = 0.1;
-        else
-            this.tangentDistance = tangentDistance;
-
-
-        xPID = new PIDController(1,0,0);
-        yPID = new PIDController(1,0,0);
-        headingPID = new PIDController(1,0,0);
-    }
-
-
-    public BasicGuidedVectorFieldFollower(double tangentDistance, PIDCoefficients xPIDCoeffs, PIDCoefficients yPIDCoeffs, PIDCoefficients headingPIDCoeffs, double maxSpeed) {
-        if (tangentDistance <= 0)
-            this.tangentDistance = 0.1;
-        else
-            this.tangentDistance = tangentDistance;
-
-
-        xPID = new PIDController(xPIDCoeffs);
-        yPID = new PIDController(yPIDCoeffs);
-        headingPID = new PIDController(headingPIDCoeffs);
-        this.maxSpeed = maxSpeed;
-    }
-
     public BasicGuidedVectorFieldFollower(Params params) {
         this.tangentDistance = params.tangentDistance;
         this.maxSpeed = params.maxSpeed;

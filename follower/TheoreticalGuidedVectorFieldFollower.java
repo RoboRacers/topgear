@@ -1,6 +1,7 @@
 package com.roboracers.topgear.follower;
 
 
+import com.acmerobotics.roadrunner.profile.VelocityConstraint;
 import com.roboracers.topgear.controls.PIDCoefficients;
 import com.roboracers.topgear.controls.PIDController;
 import com.roboracers.topgear.geometry.PointProjection;
@@ -19,7 +20,7 @@ import com.roboracers.topgear.planner.ParametricPath;
  * to adjust the robot's movement to stay on the path defined by the GVF.
  * </p>
  */
-public class CentripetalGuidedVectorFieldFollower implements Follower {
+public class TheoreticalGuidedVectorFieldFollower implements Follower {
 
     /**
      * Current parametrically defined path that is being follower.
@@ -63,7 +64,7 @@ public class CentripetalGuidedVectorFieldFollower implements Follower {
      */
     PIDController headingPID;
 
-    public CentripetalGuidedVectorFieldFollower(CommonParams params) {
+    public TheoreticalGuidedVectorFieldFollower(Params params) {
         this.tangentDistance = params.tangentDistance;
         this.centripetalMass = params.centripetalMass;
         this.maxSpeed = params.maxSpeed;
@@ -79,6 +80,30 @@ public class CentripetalGuidedVectorFieldFollower implements Follower {
     /**
      * Parameters for the GVF follower.
      */
+    public static class Params {
+        double tangentDistance;
+        double centripetalMass;
+        double maxSpeed;
+        double PIDThreshold;
+        double stoppingDistanceThreshold;
+        double stoppingPowerThreshold;
+
+        PIDCoefficients xPIDCoeffs;
+        PIDCoefficients yPIDCoeffs;
+        PIDCoefficients headingPIDCoeffs;
+
+        public Params(double tangentDistance, double centripetalMass, double maxSpeed, double PIDThreshold, double stoppingDistanceThreshold, double stoppingPowerThreshold, PIDCoefficients xPIDCoeffs, PIDCoefficients yPIDCoeffs, PIDCoefficients headingPIDCoeffs) {
+            this.tangentDistance = tangentDistance;
+            this.centripetalMass = centripetalMass;
+            this.maxSpeed = maxSpeed;
+            this.PIDThreshold = PIDThreshold;
+            this.stoppingDistanceThreshold = stoppingDistanceThreshold;
+            this.stoppingPowerThreshold = stoppingPowerThreshold;
+            this.xPIDCoeffs = xPIDCoeffs;
+            this.yPIDCoeffs = yPIDCoeffs;
+            this.headingPIDCoeffs = headingPIDCoeffs;
+        }
+    }
 
     /**
      * Set the current path to be followed.
@@ -132,19 +157,25 @@ public class CentripetalGuidedVectorFieldFollower implements Follower {
 
             // Find the closest point on the path from the robot and get its t-value
             double closestTValue = PointProjection.projectionBinarySearch(parametricPath, currentPoint, 10);
+            Vector2d closestPoint = parametricPath.getPoint(closestTValue);
+            Vector2d distance = currentPoint.subtract(closestPoint);
 
-            // Calculate the tangent point (point that the robot goes towards
-            Vector2d tangentPoint = parametricPath.getPoint(closestTValue).add(
-                    parametricPath.getDerivative(closestTValue).normalize().multiply(tangentDistance));
+            /*******************/
 
-            // Get the vector pointing from the robot to the tangent point
-            Vector2d connectingVector = tangentPoint.subtract(currentPoint);
-            Vector2d centripetalForceCorrection = computeCentripetalForceCorrection(closestTValue, currentVelocity);
+            Vector2d tangentVector = parametricPath.getDerivative(closestTValue);
 
-            Vector2d normalizedVector = (connectingVector.add(centripetalForceCorrection)).normalize();
+            if (true) {
+                tangentVector = tangentVector.normalize();
+            }
 
-            // Scale the speed by the max speed
-            Vector2d velocityVector = normalizedVector.scalarMultiply(maxSpeed);
+            Vector2d normalVector = new Vector2d(-tangentVector.getY(), tangentVector.getX());
+
+            // Reverse the normal vector if it is pointing in the wrong direction
+            if (normalVector.dot(distance) < 0) {
+                normalVector = normalVector.multiply(-1);
+            }
+
+            Vector2d velocityVector = tangentVector.add(normalVector.multiply(distance.length()));
 
             // Rotate the vector to the robot's frame of reference
             Vector2d robotFrame = velocityVector.rotated(-currentPosition.getHeading());
@@ -160,7 +191,7 @@ public class CentripetalGuidedVectorFieldFollower implements Follower {
             currentClosestTValue = closestTValue;
             currentDistanceToEnd = distanceToEnd;
             currentClosestPoint = parametricPath.getPoint(closestTValue);
-            currentTangentPoint = tangentPoint;
+            currentTangentPoint = new Vector2d(0,0);
             currentDrivePower = drivePower;
             currentHeadingTarget = headingTarget;
 
@@ -268,7 +299,7 @@ public class CentripetalGuidedVectorFieldFollower implements Follower {
         public double currentHeadingTarget;
 
 
-        public DebugPacket(CentripetalGuidedVectorFieldFollower follower) {
+        public DebugPacket(TheoreticalGuidedVectorFieldFollower follower) {
             this.usingPID = follower.usingPID;
             this.currentClosestTValue = follower.currentClosestTValue;
             this.currentDistanceToEnd = follower.currentDistanceToEnd;
