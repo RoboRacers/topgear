@@ -64,7 +64,7 @@ public class TheoreticalGuidedVectorFieldFollower implements Follower {
      */
     PIDController headingPID;
 
-    public TheoreticalGuidedVectorFieldFollower(Params params) {
+    public TheoreticalGuidedVectorFieldFollower(CommonParams params) {
         this.tangentDistance = params.tangentDistance;
         this.centripetalMass = params.centripetalMass;
         this.maxSpeed = params.maxSpeed;
