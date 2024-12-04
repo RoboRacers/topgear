@@ -67,6 +67,24 @@ public class Pose2d {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Pose2d)) return false;
+        Pose2d other = (Pose2d) o;
+        return Double.compare(x, other.x) == 0
+                && Double.compare(y, other.y) == 0
+                && Double.compare(heading, other.heading) == 0;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Double.hashCode(x);
+        result = 31 * result + Double.hashCode(y);
+        result = 31 * result + Double.hashCode(heading);
+        return result;
+    }
+
+    @Override
     public String toString() {
         return String.format("(%.3f, %.3f, %.3f°)", x, y, Math.toDegrees(heading));
     }
