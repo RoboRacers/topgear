@@ -49,7 +49,7 @@ public class Vector2d {
     }
 
     public Vector2d scalarMultiply(double scalar) {
-        return new Vector2d(x * scalar, y * scalar);
+        return multiply(scalar);
     }
 
     public double distanceTo(Vector2d other) {
@@ -65,19 +65,28 @@ public class Vector2d {
     }
 
     public Vector2d fieldToRobotCentric(double heading) {
-        // Convert heading to radians
-        double theta = heading;
-
-        // Compute the inverse rotation matrix elements
-        double cosTheta = Math.cos(theta);
-        double sinTheta = Math.sin(theta);
-
         // Apply the inverse rotation matrix to the vector
+        double cosTheta = cos(heading);
+        double sinTheta = sin(heading);
+
         double xRobot = cosTheta * this.x + sinTheta * this.y;
         double yRobot = -sinTheta * this.x + cosTheta * this.y;
 
         // Return the new vector in the robot's frame of reference
         return new Vector2d(xRobot, yRobot);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Vector2d)) return false;
+        Vector2d other = (Vector2d) o;
+        return Double.compare(x, other.x) == 0 && Double.compare(y, other.y) == 0;
+    }
+
+    @Override
+    public int hashCode() {
+        return Double.hashCode(x) * 31 + Double.hashCode(y);
     }
 
     @Override
