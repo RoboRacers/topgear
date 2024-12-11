@@ -51,7 +51,6 @@ public class CommonParams {
         this.centripetalMass = centripetalMass;
         this.maxSpeed = maxSpeed;
         this.PIDThreshold = PIDThreshold;
-        this.maxDecel = maxDecel;
         this.stoppingDistanceThreshold = stoppingDistanceThreshold;
         this.stoppingPowerThreshold = stoppingPowerThreshold;
         this.xPIDCoeffs = xPIDCoeffs;
