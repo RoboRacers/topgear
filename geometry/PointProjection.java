@@ -10,11 +10,20 @@ public class PointProjection {
     private static final int MAX_ITERATIONS = 10000;
     private static final int NUM_GUESSES = 20; // Number of evenly-spread guesses
 
+    /**
+     * Projection method that uses gradient descent, starting from several initial guesses, to
+     * find the t-value of a point on a path that is closest to the given target point.
+     * @param parametricPath Path to search on
+     * @param targetPoint The target point to minimize distance to
+     * @param guessRange Upper bound (within [0, 1]) that initial guesses are spread across;
+     *                   pass 1.0 to search the whole path
+     * @return t-value of the closest point found on the path
+     */
     public static double projectionGradientDescent(ParametricPath parametricPath, Vector2d targetPoint, double guessRange) {
         double bestT = 0.0;
         double bestDistance = Double.MAX_VALUE;
 
-        // Spread guesses evenly across the range [0, 1]
+        // Spread guesses evenly across the range [0, guessRange]
         for (int i = 0; i < NUM_GUESSES; i++) {
             double initialGuess = i / (double) (NUM_GUESSES - 1) * guessRange; // Spread guesses evenly
 
@@ -74,7 +83,6 @@ public class PointProjection {
     public static double projectionBinarySearch(ParametricPath path, Vector2d targetPoint, int searchStepLimit) {
         double lower = 0;
         double upper = 1;
-        Pose2d returnPoint;
 
         // we don't need to calculate the midpoint, so we start off at the 1/4 and 3/4 point
         for (int i = 0; i < searchStepLimit; i++) {
@@ -101,7 +109,7 @@ public class PointProjection {
 
         Vector2d target = new Vector2d(0.78,0.5);
 
-        double closest = projectionGradientDescent(testParametricPath, target, 0);
+        double closest = projectionGradientDescent(testParametricPath, target, 1.0);
 
         System.out.println(
                 testParametricPath.getPoint(closest)
