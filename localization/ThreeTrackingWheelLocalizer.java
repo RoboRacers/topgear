@@ -33,6 +33,11 @@ public abstract class ThreeTrackingWheelLocalizer implements Localizer {
 
     public Pose2d poseVelocity = null;
 
+    @Override
+    public Pose2d getPoseVelocity() {
+        return poseVelocity;
+    }
+
     public ThreeTrackingWheelLocalizer(List<Pose2d> wheelPoses) {
         if (wheelPoses.size() != 3) {
             throw new IllegalArgumentException("3 wheel positions must be provided");
