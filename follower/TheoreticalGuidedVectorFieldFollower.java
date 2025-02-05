@@ -1,7 +1,6 @@
 package com.roboracers.topgear.follower;
 
 
-import com.acmerobotics.roadrunner.profile.VelocityConstraint;
 import com.roboracers.topgear.controls.PIDCoefficients;
 import com.roboracers.topgear.controls.PIDController;
 import com.roboracers.topgear.geometry.PointProjection;
@@ -162,11 +161,7 @@ public class TheoreticalGuidedVectorFieldFollower implements Follower {
 
             /*******************/
 
-            Vector2d tangentVector = parametricPath.getDerivative(closestTValue);
-
-            if (true) {
-                tangentVector = tangentVector.normalize();
-            }
+            Vector2d tangentVector = parametricPath.getDerivative(closestTValue).normalize();
 
             Vector2d normalVector = new Vector2d(-tangentVector.getY(), tangentVector.getX());
 
@@ -238,42 +233,6 @@ public class TheoreticalGuidedVectorFieldFollower implements Follower {
                 headingPID.update(currentPose.getHeading())
         );
     }
-
-    /**
-     *
-     * @param t
-     * @param velocity
-     * @return
-     */
-    private Vector2d computeCentripetalForceCorrection(double t, Pose2d velocity) {
-        double radiusOfCurvature = parametricPath.getRadiusOfCurvature(t);
-
-        // If the radius of curvature is infinite (straight path), no correction is needed
-        if (radiusOfCurvature == Double.POSITIVE_INFINITY) {
-            return new Vector2d(0, 0); // No correction needed for straight paths
-        }
-
-        // Compute the centripetal force
-        // double mass = .07; // .85
-        Vector2d tangentUnitVector = parametricPath.getDerivative(t).normalize();
-        double tangentVelocity = velocity.vec().dot(tangentUnitVector);
-        double centripetalForceMagnitude = (centripetalMass * tangentVelocity * tangentVelocity) / radiusOfCurvature;
-
-        // Get the unit vector normal to the path (pointing towards the center of curvature)
-        Vector2d tangent = parametricPath.getDerivative(t).normalize(); // Tangent vector
-        Vector2d normal = new Vector2d(-tangent.getY(), tangent.getX()); // Perpendicular to tangent
-
-        // The direction of the normal force depends on the curve's orientation
-        if (parametricPath.getCurvature(t) < 0) {
-            normal = normal.multiply(-1); // Flip the normal direction if curvature is negative
-        }
-
-        // The centripetal force correction is in the direction of the normal
-        Vector2d centripetalForce = normal.multiply(centripetalForceMagnitude);
-
-        return centripetalForce;
-    }
-
 
     /*
      * Status variables.
