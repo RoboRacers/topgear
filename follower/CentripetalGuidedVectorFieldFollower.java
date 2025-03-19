@@ -1,7 +1,6 @@
 package com.roboracers.topgear.follower;
 
 
-import com.roboracers.topgear.controls.PIDCoefficients;
 import com.roboracers.topgear.controls.PIDController;
 import com.roboracers.topgear.geometry.PointProjection;
 import com.roboracers.topgear.geometry.Pose2d;
@@ -19,12 +18,8 @@ import com.roboracers.topgear.planner.ParametricPath;
  * to adjust the robot's movement to stay on the path defined by the GVF.
  * </p>
  */
-public class CentripetalGuidedVectorFieldFollower implements Follower {
+public class CentripetalGuidedVectorFieldFollower extends AbstractGuidedVectorFieldFollower {
 
-    /**
-     * Current parametrically defined path that is being follower.
-     */
-    private ParametricPath parametricPath;
     /**
      * The distance between the closest point and the tangent point.
      */
@@ -41,14 +36,6 @@ public class CentripetalGuidedVectorFieldFollower implements Follower {
      * Threshold for the end PID to kick in, measured in inches.
      */
     private double PIDThreshold;
-    /**
-     * The distance threshold for the end of the path, measured in inches.
-     */
-    private double stoppingDistanceThreshold;
-    /**
-     * The minimum power for the end of the path, measured between 0 and 1.
-     */
-    private double stoppingPowerThreshold;
 
     /**
      * X PID controller.
@@ -74,23 +61,6 @@ public class CentripetalGuidedVectorFieldFollower implements Follower {
         xPID = new PIDController(params.xPIDCoeffs);
         yPID = new PIDController(params.yPIDCoeffs);
         headingPID = new PIDController(params.headingPIDCoeffs);
-    }
-
-    /**
-     * Parameters for the GVF follower.
-     */
-
-    /**
-     * Set the current path to be followed.
-     * @param parametricPath
-     */
-    @Override
-    public void setPath(ParametricPath parametricPath) {
-        this.parametricPath = parametricPath;
-    }
-
-    public ParametricPath getPath() {
-        return parametricPath;
     }
 
     /**
@@ -124,7 +94,7 @@ public class CentripetalGuidedVectorFieldFollower implements Follower {
             currentDrivePower = new Pose2d();
             currentHeadingTarget = headingTarget;
 
-            return PIDToPoint( new Pose2d(endpoint, headingTarget), currentPosition);
+            return pidToPoint(xPID, yPID, headingPID, new Pose2d(endpoint, headingTarget), currentPosition);
 
         } else {
             usingPID = false;
@@ -170,45 +140,6 @@ public class CentripetalGuidedVectorFieldFollower implements Follower {
     }
 
     /**
-     * Check if the robot has reached the end of the path.
-     * @param currentPosition robot current position
-     * @return true if the robot has reached the end of the path, false otherwise
-     */
-    @Override
-    public Boolean isComplete(Pose2d currentPosition) {
-        Vector2d endpoint = parametricPath.getPoint(1);
-        double delta =  currentPosition.vec().distanceTo(endpoint);
-        if (currentDrivePower == null) currentDrivePower = new Pose2d(0,0,0);
-        double power = currentDrivePower.vec().length();
-        return delta < stoppingDistanceThreshold
-                && power < stoppingPowerThreshold;
-    }
-
-    /**
-     * PID to point implementation to bring the robot to a stop,
-     * or to hold position at the end of the path.
-     * @param target
-     * @param currentPose
-     * @return
-     */
-    private Pose2d PIDToPoint(Pose2d target, Pose2d currentPose) {
-
-        xPID.setSetpoint(target.getX());
-        yPID.setSetpoint(target.getY());
-        headingPID.setSetpoint(target.getHeading());
-
-        Vector2d translationPowers = new Vector2d(
-                xPID.update(currentPose.getX()),
-                yPID.update(currentPose.getY())
-        ).rotated(-currentPose.getHeading());
-
-        return new Pose2d(
-                translationPowers,
-                headingPID.update(currentPose.getHeading())
-        );
-    }
-
-    /**
      *
      * @param t
      * @param velocity
@@ -223,7 +154,6 @@ public class CentripetalGuidedVectorFieldFollower implements Follower {
         }
 
         // Compute the centripetal force
-        // double mass = .07; // .85
         Vector2d tangentUnitVector = parametricPath.getDerivative(t).normalize();
         double tangentVelocity = velocity.vec().dot(tangentUnitVector);
         double centripetalForceMagnitude = (centripetalMass * tangentVelocity * tangentVelocity) / radiusOfCurvature;
@@ -238,22 +168,8 @@ public class CentripetalGuidedVectorFieldFollower implements Follower {
         }
 
         // The centripetal force correction is in the direction of the normal
-        Vector2d centripetalForce = normal.multiply(centripetalForceMagnitude);
-
-        return centripetalForce;
+        return normal.multiply(centripetalForceMagnitude);
     }
-
-
-    /*
-     * Status variables.
-     */
-    protected boolean usingPID = false;
-    protected double currentClosestTValue;
-    protected double currentDistanceToEnd;
-    protected Vector2d currentClosestPoint;
-    protected Vector2d currentTangentPoint;
-    protected Pose2d currentDrivePower;
-    protected double currentHeadingTarget;
 
     /**
      * DebugPacket class to store the current state of the follower.
