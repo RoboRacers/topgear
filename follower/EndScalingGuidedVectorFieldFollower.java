@@ -20,12 +20,8 @@ import com.roboracers.topgear.planner.ParametricPath;
  * </p>
  */
 // gvf without pid ending
-public class EndScalingGuidedVectorFieldFollower implements Follower {
+public class EndScalingGuidedVectorFieldFollower extends AbstractGuidedVectorFieldFollower {
 
-    /**
-     * Current parametrically defined path that is being follower.
-     */
-    private ParametricPath parametricPath;
     /**
      * The distance between the closest point and the tangent point.
      */
@@ -38,14 +34,6 @@ public class EndScalingGuidedVectorFieldFollower implements Follower {
      * Max speed of the robot while following the path.
      */
     private double maxSpeed;
-    /**
-     * The distance threshold for the end of the path, measured in inches.
-     */
-    private double stoppingDistanceThreshold;
-    /**
-     * The minimum power for the end of the path, measured between 0 and 1.
-     */
-    private double stoppingPowerThreshold;
     /**
      * The maximum deceleration of the robot. Controls end point velocity scaling.
      */
@@ -90,20 +78,6 @@ public class EndScalingGuidedVectorFieldFollower implements Follower {
             this.stoppingPowerThreshold = stoppingPowerThreshold;
             this.headingPIDCoeffs = headingPIDCoeffs;
         }
-    }
-
-    /**
-     * Set the current path to be followed.
-     * @param parametricPath
-     */
-    @Override
-    public void setPath(ParametricPath parametricPath) {
-        this.parametricPath = parametricPath;
-    }
-
-    @Override
-    public ParametricPath getPath() {
-        return parametricPath;
     }
 
     /**
@@ -169,21 +143,6 @@ public class EndScalingGuidedVectorFieldFollower implements Follower {
 
     }
 
-    /**
-     * Check if the robot has reached the end of the path.
-     * @param currentPosition robot current position
-     * @return true if the robot has reached the end of the path, false otherwise
-     */
-    @Override
-    public Boolean isComplete(Pose2d currentPosition) {
-        Vector2d endpoint = parametricPath.getPoint(1);
-        double delta =  currentPosition.vec().distanceTo(endpoint);
-        if (currentDrivePower == null) currentDrivePower = new Pose2d(0,0,0);
-        double power = currentDrivePower.vec().length();
-        return delta < stoppingDistanceThreshold
-                && power < stoppingPowerThreshold;
-    }
-
     // Function to calculate the centripetal force correction at a point on the curve
     public Vector2d computeCentripetalForceCorrection(double t, Pose2d velocity) {
         double radiusOfCurvature = parametricPath.getRadiusOfCurvature(t);
@@ -194,7 +153,6 @@ public class EndScalingGuidedVectorFieldFollower implements Follower {
         }
 
         // Compute the centripetal force
-        //  double mass = .07; // .85
         Vector2d tangentUnitVector = parametricPath.getDerivative(t).normalize();
         double tangentVelocity = velocity.vec().dot(tangentUnitVector);
         double centripetalForceMagnitude = (centripetalMass * tangentVelocity * tangentVelocity) / radiusOfCurvature;
@@ -209,22 +167,8 @@ public class EndScalingGuidedVectorFieldFollower implements Follower {
         }
 
         // The centripetal force correction is in the direction of the normal
-        Vector2d centripetalForce = normal.multiply(centripetalForceMagnitude);
-
-        return centripetalForce;
+        return normal.multiply(centripetalForceMagnitude);
     }
-
-
-    /*
-     * Status variables.
-     */
-    protected boolean usingPID = false;
-    protected double currentClosestTValue;
-    protected double currentDistanceToEnd;
-    protected Vector2d currentClosestPoint;
-    protected Vector2d currentTangentPoint;
-    protected Pose2d currentDrivePower;
-    protected double currentHeadingTarget;
 
     /**
      * DebugPacket class to store the current state of the follower.
