@@ -6,7 +6,6 @@ import com.roboracers.topgear.controls.PIDController;
 import com.roboracers.topgear.geometry.PointProjection;
 import com.roboracers.topgear.geometry.Pose2d;
 import com.roboracers.topgear.geometry.Vector2d;
-import com.roboracers.topgear.planner.ParametricPath;
 
 
 /**
@@ -19,12 +18,8 @@ import com.roboracers.topgear.planner.ParametricPath;
  * to adjust the robot's movement to stay on the path defined by the GVF.
  * </p>
  */
-public class TheoreticalGuidedVectorFieldFollower implements Follower {
+public class TheoreticalGuidedVectorFieldFollower extends AbstractGuidedVectorFieldFollower {
 
-    /**
-     * Current parametrically defined path that is being follower.
-     */
-    private ParametricPath parametricPath;
     /**
      * The distance between the closest point and the tangent point.
      */
@@ -41,14 +36,6 @@ public class TheoreticalGuidedVectorFieldFollower implements Follower {
      * Threshold for the end PID to kick in, measured in inches.
      */
     private double PIDThreshold;
-    /**
-     * The distance threshold for the end of the path, measured in inches.
-     */
-    private double stoppingDistanceThreshold;
-    /**
-     * The minimum power for the end of the path, measured between 0 and 1.
-     */
-    private double stoppingPowerThreshold;
 
     /**
      * X PID controller.
@@ -105,19 +92,6 @@ public class TheoreticalGuidedVectorFieldFollower implements Follower {
     }
 
     /**
-     * Set the current path to be followed.
-     * @param parametricPath
-     */
-    @Override
-    public void setPath(ParametricPath parametricPath) {
-        this.parametricPath = parametricPath;
-    }
-
-    public ParametricPath getPath() {
-        return parametricPath;
-    }
-
-    /**
      * Feeds the drive powers to the drivetrain based on the direction of the
      * vector gradient field at the current point. Only provides x and y translation,
      * no heading in this implementation.
@@ -148,7 +122,7 @@ public class TheoreticalGuidedVectorFieldFollower implements Follower {
             currentDrivePower = new Pose2d();
             currentHeadingTarget = headingTarget;
 
-            return PIDToPoint( new Pose2d(endpoint, headingTarget), currentPosition);
+            return pidToPoint(xPID, yPID, headingPID, new Pose2d(endpoint, headingTarget), currentPosition);
 
         } else {
             usingPID = false;
@@ -158,8 +132,6 @@ public class TheoreticalGuidedVectorFieldFollower implements Follower {
             double closestTValue = PointProjection.projectionBinarySearch(parametricPath, currentPoint, 10);
             Vector2d closestPoint = parametricPath.getPoint(closestTValue);
             Vector2d distance = currentPoint.subtract(closestPoint);
-
-            /*******************/
 
             Vector2d tangentVector = parametricPath.getDerivative(closestTValue).normalize();
 
@@ -194,56 +166,6 @@ public class TheoreticalGuidedVectorFieldFollower implements Follower {
             return drivePower;
         }
     }
-
-    /**
-     * Check if the robot has reached the end of the path.
-     * @param currentPosition robot current position
-     * @return true if the robot has reached the end of the path, false otherwise
-     */
-    @Override
-    public Boolean isComplete(Pose2d currentPosition) {
-        Vector2d endpoint = parametricPath.getPoint(1);
-        double delta =  currentPosition.vec().distanceTo(endpoint);
-        if (currentDrivePower == null) currentDrivePower = new Pose2d(0,0,0);
-        double power = currentDrivePower.vec().length();
-        return delta < stoppingDistanceThreshold
-                && power < stoppingPowerThreshold;
-    }
-
-    /**
-     * PID to point implementation to bring the robot to a stop,
-     * or to hold position at the end of the path.
-     * @param target
-     * @param currentPose
-     * @return
-     */
-    private Pose2d PIDToPoint(Pose2d target, Pose2d currentPose) {
-
-        xPID.setSetpoint(target.getX());
-        yPID.setSetpoint(target.getY());
-        headingPID.setSetpoint(target.getHeading());
-
-        Vector2d translationPowers = new Vector2d(
-                xPID.update(currentPose.getX()),
-                yPID.update(currentPose.getY())
-        ).rotated(-currentPose.getHeading());
-
-        return new Pose2d(
-                translationPowers,
-                headingPID.update(currentPose.getHeading())
-        );
-    }
-
-    /*
-     * Status variables.
-     */
-    protected boolean usingPID = false;
-    protected double currentClosestTValue;
-    protected double currentDistanceToEnd;
-    protected Vector2d currentClosestPoint;
-    protected Vector2d currentTangentPoint;
-    protected Pose2d currentDrivePower;
-    protected double currentHeadingTarget;
 
     /**
      * DebugPacket class to store the current state of the follower.
