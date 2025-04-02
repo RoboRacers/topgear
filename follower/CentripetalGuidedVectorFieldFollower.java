@@ -109,7 +109,7 @@ public class CentripetalGuidedVectorFieldFollower extends AbstractGuidedVectorFi
 
             // Get the vector pointing from the robot to the tangent point
             Vector2d connectingVector = tangentPoint.subtract(currentPoint);
-            Vector2d centripetalForceCorrection = computeCentripetalForceCorrection(closestTValue, currentVelocity);
+            Vector2d centripetalForceCorrection = computeCentripetalForceCorrection(parametricPath, closestTValue, currentVelocity, centripetalMass);
 
             Vector2d normalizedVector = (connectingVector.add(centripetalForceCorrection)).normalize();
 
@@ -137,38 +137,6 @@ public class CentripetalGuidedVectorFieldFollower extends AbstractGuidedVectorFi
             // Return the new vector in the robot's frame of reference
             return drivePower;
         }
-    }
-
-    /**
-     *
-     * @param t
-     * @param velocity
-     * @return
-     */
-    private Vector2d computeCentripetalForceCorrection(double t, Pose2d velocity) {
-        double radiusOfCurvature = parametricPath.getRadiusOfCurvature(t);
-
-        // If the radius of curvature is infinite (straight path), no correction is needed
-        if (radiusOfCurvature == Double.POSITIVE_INFINITY) {
-            return new Vector2d(0, 0); // No correction needed for straight paths
-        }
-
-        // Compute the centripetal force
-        Vector2d tangentUnitVector = parametricPath.getDerivative(t).normalize();
-        double tangentVelocity = velocity.vec().dot(tangentUnitVector);
-        double centripetalForceMagnitude = (centripetalMass * tangentVelocity * tangentVelocity) / radiusOfCurvature;
-
-        // Get the unit vector normal to the path (pointing towards the center of curvature)
-        Vector2d tangent = parametricPath.getDerivative(t).normalize(); // Tangent vector
-        Vector2d normal = new Vector2d(-tangent.getY(), tangent.getX()); // Perpendicular to tangent
-
-        // The direction of the normal force depends on the curve's orientation
-        if (parametricPath.getCurvature(t) < 0) {
-            normal = normal.multiply(-1); // Flip the normal direction if curvature is negative
-        }
-
-        // The centripetal force correction is in the direction of the normal
-        return normal.multiply(centripetalForceMagnitude);
     }
 
     /**

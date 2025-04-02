@@ -95,4 +95,40 @@ public abstract class AbstractGuidedVectorFieldFollower implements Follower {
                 headingPID.update(currentPose.getHeading())
         );
     }
+
+    /**
+     * Computes the sideways correction vector needed to counteract the centripetal
+     * acceleration the robot experiences while following a curved section of the path, so it
+     * doesn't get pulled to the inside of the curve. Shared by the follower variants that apply
+     * a centripetal correction.
+     * @param path the path being followed
+     * @param t parameter value of the point on the path to correct around
+     * @param velocity the robot's current velocity
+     * @param centripetalMass tuning constant relating speed and curvature to correction magnitude
+     * @return correction vector, in the same (global) frame as the path
+     */
+    protected static Vector2d computeCentripetalForceCorrection(ParametricPath path, double t, Pose2d velocity, double centripetalMass) {
+        double radiusOfCurvature = path.getRadiusOfCurvature(t);
+
+        // If the radius of curvature is infinite (straight path), no correction is needed
+        if (radiusOfCurvature == Double.POSITIVE_INFINITY) {
+            return new Vector2d(0, 0); // No correction needed for straight paths
+        }
+
+        // Compute the centripetal force
+        Vector2d tangentUnitVector = path.getDerivative(t).normalize();
+        double tangentVelocity = velocity.vec().dot(tangentUnitVector);
+        double centripetalForceMagnitude = (centripetalMass * tangentVelocity * tangentVelocity) / radiusOfCurvature;
+
+        // Get the unit vector normal to the path (pointing towards the center of curvature)
+        Vector2d normal = new Vector2d(-tangentUnitVector.getY(), tangentUnitVector.getX());
+
+        // The direction of the normal force depends on the curve's orientation
+        if (path.getCurvature(t) < 0) {
+            normal = normal.multiply(-1); // Flip the normal direction if curvature is negative
+        }
+
+        // The centripetal force correction is in the direction of the normal
+        return normal.multiply(centripetalForceMagnitude);
+    }
 }
