@@ -16,7 +16,8 @@ public class TestRunner {
     private static int failed = 0;
 
     public static void main(String[] args) {
-        // Test suites are registered here as they're added.
+        run("Vector2dTest", Vector2dTest::runTests);
+        run("Pose2dTest", Pose2dTest::runTests);
 
         System.out.println();
         System.out.println(passed + " passed, " + failed + " failed");
