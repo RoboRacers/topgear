@@ -18,6 +18,7 @@ public class TestRunner {
     public static void main(String[] args) {
         run("Vector2dTest", Vector2dTest::runTests);
         run("Pose2dTest", Pose2dTest::runTests);
+        run("AngleUtilsTest", AngleUtilsTest::runTests);
 
         System.out.println();
         System.out.println(passed + " passed, " + failed + " failed");
