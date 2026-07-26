@@ -20,6 +20,7 @@ public class TestRunner {
         run("Pose2dTest", Pose2dTest::runTests);
         run("AngleUtilsTest", AngleUtilsTest::runTests);
         run("CubicBezierCurveTest", CubicBezierCurveTest::runTests);
+        run("CurveBuilderTest", CurveBuilderTest::runTests);
 
         System.out.println();
         System.out.println(passed + " passed, " + failed + " failed");
